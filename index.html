@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<meta name="apple-mobile-web-app-capable" content="yes"/>
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+<meta name="apple-mobile-web-app-title" content="Conferencias"/>
+<title>Conferencias DETRADI</title>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:#F4F6FB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
+input,select,textarea,button{font-family:inherit}
+::-webkit-scrollbar{display:none}
+@media print{.np{display:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const {useState,useEffect}=React;
+const NV="#1B3A6B",LT="#F4F6FB";
+const TD="ADOS_TestimonioPacienteTx";
+const MS=["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+const fmt=f=>{if(!f)return"—";const[y,m,d]=f.split("-");return`${d}/${m}/${y}`;};
+const uniq=(a,k)=>[...new Set(a.map(c=>c[k]).filter(Boolean))].sort();
+const nM=n=>MS[parseInt(n)-1]||n;
+const EF={id:null,fecha:"",tema:TD,sanitario:"",trasplantado:"",centro_nombre:"",centro_curso:"",centro_provincia:"Pontevedra",centro_localidad:"",centro_direccion:"",centro_telefono:"",contacto_nombre:"",contacto_telefono:"",contacto_email:"",asistentes:"",hora_inicio:"",hora_fin:"",obs:""};
+const lg=()=>{try{const v=localStorage.getItem("dtd");return v?JSON.parse(v):[]}catch{return[]}};
+const ls=a=>{try{localStorage.setItem("dtd",JSON.stringify(a))}catch{}};
+
+const Hdr=({t,bk,ac})=><div style={{background:NV,padding:`max(env(safe-area-inset-top),16px) 16px 12px`,display:"flex",alignItems:"center",justifyContent:"space-between",position:"sticky",top:0,zIndex:10}}>
+  {bk?<button onClick={bk} style={{background:"none",border:"none",color:"#fff",fontSize:15,cursor:"pointer",minWidth:70,textAlign:"left",padding:0}}>← Volver</button>:<div style={{minWidth:70}}/>}
+  <div style={{color:"#fff",fontWeight:700,fontSize:16,textAlign:"center",flex:1}}>{t}</div>
+  {ac?<div style={{minWidth:70,textAlign:"right"}}>{ac}</div>:<div style={{minWidth:70}}/>}
+</div>;
+
+const ST=({c})=><div style={{fontSize:11,fontWeight:700,color:NV,textTransform:"uppercase",letterSpacing:1,borderBottom:`2px solid ${NV}22`,paddingBottom:4,marginBottom:10,marginTop:18}}>{c}</div>;
+const FD=({l,v})=>v?<div style={{marginBottom:8}}><div style={{fontSize:11,color:"#888",textTransform:"uppercase",letterSpacing:.4}}>{l}</div><div style={{fontSize:15}}>{v}</div></div>:null;
+
+const Inp=({lb,nm,vl,ch,tp="text",rq,ht})=><div style={{marginBottom:12}}>
+  <label style={{fontSize:12,color:"#555",fontWeight:600,display:"block",marginBottom:3}}>{lb}{rq&&<span style={{color:"red"}}> *</span>}</label>
+  <input type={tp} name={nm} value={vl} onChange={ch} style={{width:"100%",padding:"10px 11px",borderRadius:8,border:"1.5px solid #D0D8E8",fontSize:16,background:"#fff",boxSizing:"border-box"}}/>
+  {ht&&<div style={{fontSize:11,color:"#888",marginTop:3}}>{ht}</div>}
+</div>;
+
+const InpList=({lb,nm,vl,ch,opts,lid})=><div style={{marginBottom:12}}>
+  <label style={{fontSize:12,color:"#555",fontWeight:600,display:"block",marginBottom:3}}>{lb}</label>
+  <input list={lid} name={nm} value={vl} onChange={ch} autoComplete="off" style={{width:"100%",padding:"10px 11px",borderRadius:8,border:"1.5px solid #D0D8E8",fontSize:16,background:"#fff",boxSizing:"border-box"}}/>
+  <datalist id={lid}>{opts.map(o=><option key={o} value={o}/>)}</datalist>
+</div>;
+
+const Sel=({lb,fm,vl,ch,opts,ph})=><div style={{marginBottom:12}}>
+  <label style={{fontSize:12,color:"#555",fontWeight:600,display:"block",marginBottom:3}}>{lb}</label>
+  <select value={vl} onChange={ch} style={{width:"100%",padding:"10px 11px",borderRadius:8,border:"1.5px solid #D0D8E8",fontSize:16,background:"#fff",boxSizing:"border-box",WebkitAppearance:"none"}}>
+    <option value="">{ph||"Todos"}</option>
+    {opts.map(o=><option key={o} value={o}>{fm==="M"?nM(o):o}</option>)}
+  </select>
+</div>;
+
+const TA=({lb,nm,vl,ch})=><div style={{marginBottom:12}}>
+  <label style={{fontSize:12,color:"#555",fontWeight:600,display:"block",marginBottom:3}}>{lb}</label>
+  <textarea name={nm} value={vl} onChange={ch} rows={3} style={{width:"100%",padding:"10px 11px",borderRadius:8,border:"1.5px solid #D0D8E8",fontSize:16,background:"#fff",boxSizing:"border-box",resize:"vertical"}}/>
+</div>;
+
+const Btn=({lb,oc,dg})=><button onClick={oc} style={{width:"100%",background:dg?"#fff":NV,color:dg?"#C0392B":"#fff",border:dg?"1.5px solid #C0392B":"none",borderRadius:12,padding:"13px",fontSize:16,fontWeight:700,cursor:"pointer",marginTop:10}}>{lb}</button>;
+const Tst=({m})=>m?<div style={{position:"fixed",bottom:30,left:"50%",transform:"translateX(-50%)",background:"#222",color:"#fff",borderRadius:10,padding:"10px 22px",fontSize:14,zIndex:999,whiteSpace:"nowrap"}}>{m}</div>:null;
+const SB=({n,l})=><div style={{flex:1,background:LT,borderRadius:10,padding:"12px 8px",textAlign:"center"}}><div style={{fontSize:24,fontWeight:700,color:NV}}>{n}</div><div style={{fontSize:11,color:"#666"}}>{l}</div></div>;
+
+function App(){
+  const [sc,setSc]=useState("list");
+  const [cs,setCs]=useState([]);
+  const [fm,setFm]=useState({...EF});
+  const [sid,setSid]=useState(null);
+  const [sq,setSq]=useState("");
+  const [ts,setTs]=useState(null);
+  const [fA,sfA]=useState(""); const [fM,sfM]=useState("");
+  const [fP,sfP]=useState(""); const [fL,sfL]=useState("");
+  const [fC,sfC]=useState(""); const [fS,sfS]=useState(""); const [fT,sfT]=useState("");
+  const [iC,sIC]=useState(true);
+  const [rpt,setRpt]=useState(null);
+
+  useEffect(()=>setCs(lg()),[]);
+  const sv=a=>{setCs(a);ls(a);};
+  const st=m=>{setTs(m);setTimeout(()=>setTs(null),2500);};
+
+  const hc=e=>{
+    const{name,value}=e.target;
+    setFm(f=>{
+      const u={...f,[name]:value};
+      if(name==="hora_inicio"&&value){
+        const[h,m]=value.split(":").map(Number);
+        u.hora_fin=`${String((h+1)%24).padStart(2,"0")}:${String(m).padStart(2,"0")}`;
+      }
+      return u;
+    });
+  };
+
+  const oN=()=>{setFm({...EF,id:Date.now()});setSc("form");};
+  const oE=c=>{setFm({...c});setSc("form");};
+  const oD=c=>{setSid(c.id);setSc("detail");};
+
+  function hSv(){
+    if(!fm.fecha||!fm.centro_nombre){st("⚠️ Fecha y nombre del centro son obligatorios");return;}
+    const sn={...fm};
+    const ie=cs.some(c=>String(c.id)===String(sn.id));
+    let up=ie?cs.map(c=>String(c.id)===String(sn.id)?sn:c):[sn,...cs];
+    up.sort((a,b)=>(b.fecha||"").localeCompare(a.fecha||""));
+    sv(up);st(ie?"✅ Actualizada":"✅ Guardada");setSc("list");
+  }
+  function hDl(id){
+    if(!window.confirm("¿Eliminar?"))return;
+    sv(cs.filter(c=>String(c.id)!==String(id)));
+    st("🗑️ Eliminada");setSc("list");
+  }
+
+  const fl=cs.filter(c=>!sq||[c.centro_nombre,c.tema,c.centro_localidad,c.centro_provincia,c.sanitario,c.trasplantado,c.centro_curso].some(v=>(v||"").toLowerCase().includes(sq.toLowerCase())));
+  const ef=cs.filter(c=>{
+    if(fA&&c.fecha?.split("-")[0]!==fA)return false;
+    if(fM&&parseInt(c.fecha?.split("-")[1])!==parseInt(fM))return false;
+    if(fP&&c.centro_provincia!==fP)return false;
+    if(fL&&c.centro_localidad!==fL)return false;
+    if(fC&&c.centro_nombre!==fC)return false;
+    if(fS&&c.sanitario!==fS)return false;
+    if(fT&&c.trasplantado!==fT)return false;
+    return true;
+  });
+
+  function hEx(){
+    if(ef.length===0){st("⚠️ Sin resultados");return;}
+    const tot=ef.reduce((s,c)=>s+(parseInt(c.asistentes)||0),0);
+    const byA={},byP={},byM={};
+    ef.forEach(c=>{
+      const y=(c.fecha||"").split("-")[0]||"Sin año";
+      if(!byA[y])byA[y]={n:0,a:0,prs:new Set()};
+      byA[y].n++;byA[y].a+=parseInt(c.asistentes)||0;
+      if(c.centro_provincia)byA[y].prs.add(c.centro_provincia);
+      const p=c.centro_provincia||"Sin provincia";
+      if(!byP[p])byP[p]={n:0,a:0};byP[p].n++;byP[p].a+=parseInt(c.asistentes)||0;
+      if(!c.fecha)return;
+      const mk=c.fecha.substring(0,7);
+      if(!byM[mk])byM[mk]={n:0,a:0};byM[mk].n++;byM[mk].a+=parseInt(c.asistentes)||0;
+    });
+    setRpt({list:ef,tot,byA,byP,byM,iC});
+    setSc("preview");
+  }
+
+  const anios=[...new Set(cs.map(c=>c.fecha?.split("-")[0]).filter(Boolean))].sort().reverse();
+  const tA=ef.reduce((s,c)=>s+(parseInt(c.asistentes)||0),0);
+  const med=ef.length?(tA/ef.length).toFixed(1):0;
+
+  // ── LISTA ─────────────────────────────────────────────────────
+  if(sc==="list")return <div style={{minHeight:"100vh",background:LT}}>
+    <Hdr t="Conferencias DETRADI" ac={<div style={{display:"flex",gap:6}}>
+      <button onClick={()=>setSc("export")} style={{background:"#fff",border:"none",color:NV,fontWeight:700,fontSize:12,borderRadius:8,padding:"5px 10px",cursor:"pointer"}}>📄 PDF</button>
+      <button onClick={oN} style={{background:"#fff",border:"none",color:NV,fontWeight:700,fontSize:12,borderRadius:8,padding:"5px 10px",cursor:"pointer"}}>+ Nueva</button>
+    </div>}/>
+    <div style={{padding:"14px 14px 0"}}><input placeholder="🔍  Buscar…" value={sq} onChange={e=>setSq(e.target.value)} style={{width:"100%",padding:"10px 12px",borderRadius:10,border:"1.5px solid #D0D8E8",fontSize:16,background:"#fff",boxSizing:"border-box"}}/></div>
+    <div style={{padding:14}}>
+      {fl.length===0?<div style={{textAlign:"center",color:"#aaa",marginTop:60}}>
+        <div style={{fontSize:44}}>📋</div>
+        <div style={{marginTop:10,fontSize:15}}>No hay conferencias registradas</div>
+        <button onClick={oN} style={{marginTop:16,background:NV,color:"#fff",border:"none",borderRadius:10,padding:"10px 24px",fontSize:15,cursor:"pointer"}}>Registrar primera conferencia</button>
+      </div>:fl.map(c=><div key={c.id} onClick={()=>oD(c)} style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:10,boxShadow:"0 1px 6px rgba(27,58,107,.08)",cursor:"pointer",borderLeft:`4px solid ${NV}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+          <div style={{fontWeight:700,fontSize:15,color:NV,flex:1,marginRight:8}}>{c.centro_nombre}</div>
+          <span style={{background:NV+"22",color:NV,border:`1px solid ${NV}44`,borderRadius:999,padding:"2px 10px",fontSize:12,fontWeight:600,whiteSpace:"nowrap"}}>{fmt(c.fecha)}</span>
+        </div>
+        {c.tema&&<div style={{fontSize:13,color:"#555",marginTop:3}}>{c.tema}</div>}
+        <div style={{display:"flex",gap:10,marginTop:5,fontSize:12,color:"#888",flexWrap:"wrap"}}>
+          {c.centro_curso&&<span>🎓 {c.centro_curso}</span>}
+          {c.centro_provincia&&<span>🗺️ {c.centro_provincia}</span>}
+          {c.centro_localidad&&<span>📍 {c.centro_localidad}</span>}
+          {c.sanitario&&<span>🩺 {c.sanitario}</span>}
+          {c.trasplantado&&<span>💙 {c.trasplantado}</span>}
+          {c.asistentes&&<span>👥 {c.asistentes}</span>}
+          {c.hora_inicio&&<span>🕐 {c.hora_inicio}{c.hora_fin?"–"+c.hora_fin:""}</span>}
+        </div>
+      </div>)}
+    </div>
+    <Tst m={ts}/>
+  </div>;
+
+  // ── FORMULARIO ────────────────────────────────────────────────
+  if(sc==="form")return <div style={{minHeight:"100vh",background:LT}}>
+    <Hdr t={cs.some(c=>String(c.id)===String(fm.id))?"Editar":"Nueva conferencia"} bk={()=>setSc("list")} ac={<button onClick={hSv} style={{background:"#fff",border:"none",color:NV,fontWeight:700,fontSize:13,borderRadius:8,padding:"5px 11px",cursor:"pointer"}}>Guardar</button>}/>
+    <div style={{padding:16,paddingBottom:60}}>
+      <ST c="📅 Datos generales"/>
+      <Inp lb="Fecha" nm="fecha" vl={fm.fecha} ch={hc} tp="date" rq/>
+      <Inp lb="Tema / Título" nm="tema" vl={fm.tema} ch={hc} ht="Por defecto: ADOS_TestimonioPacienteTx"/>
+      <InpList lb="Sanitario" nm="sanitario" vl={fm.sanitario} ch={hc} opts={uniq(cs,"sanitario")} lid="lst-san"/>
+      <InpList lb="Trasplantado" nm="trasplantado" vl={fm.trasplantado} ch={hc} opts={uniq(cs,"trasplantado")} lid="lst-tra"/>
+      <div style={{display:"flex",gap:10}}>
+        <div style={{flex:1}}><Inp lb="Hora inicio" nm="hora_inicio" vl={fm.hora_inicio} ch={hc} tp="time"/></div>
+        <div style={{flex:1}}><Inp lb="Hora fin" nm="hora_fin" vl={fm.hora_fin} ch={hc} tp="time"/></div>
+      </div>
+      <Inp lb="Asistentes" nm="asistentes" vl={fm.asistentes} ch={hc} tp="number"/>
+      <ST c="🏫 Centro de enseñanza"/>
+      <Inp lb="Nombre del centro" nm="centro_nombre" vl={fm.centro_nombre} ch={hc} rq/>
+      <Inp lb="Curso" nm="centro_curso" vl={fm.centro_curso} ch={hc}/>
+      <Inp lb="Localidad" nm="centro_localidad" vl={fm.centro_localidad} ch={hc}/>
+      <Inp lb="Provincia" nm="centro_provincia" vl={fm.centro_provincia} ch={hc}/>
+      <Inp lb="Dirección" nm="centro_direccion" vl={fm.centro_direccion} ch={hc}/>
+      <Inp lb="Teléfono" nm="centro_telefono" vl={fm.centro_telefono} ch={hc} tp="tel"/>
+      <ST c="👤 Persona de contacto"/>
+      <Inp lb="Nombre y apellidos" nm="contacto_nombre" vl={fm.contacto_nombre} ch={hc}/>
+      <Inp lb="Teléfono" nm="contacto_telefono" vl={fm.contacto_telefono} ch={hc} tp="tel"/>
+      <Inp lb="Correo electrónico" nm="contacto_email" vl={fm.contacto_email} ch={hc} tp="email"/>
+      <ST c="📝 Observaciones"/>
+      <TA lb="Notas adicionales" nm="obs" vl={fm.obs} ch={hc}/>
+      <Btn lb="Guardar conferencia" oc={hSv}/>
+    </div>
+    <Tst m={ts}/>
+  </div>;
+
+  // ── DETALLE ───────────────────────────────────────────────────
+  if(sc==="detail"){
+    const c=cs.find(x=>String(x.id)===String(sid));
+    if(!c){setSc("list");return null;}
+    return <div style={{minHeight:"100vh",background:LT}}>
+      <Hdr t="Detalle" bk={()=>setSc("list")} ac={<button onClick={()=>oE(c)} style={{background:"#fff",border:"none",color:NV,fontWeight:700,fontSize:13,borderRadius:8,padding:"5px 11px",cursor:"pointer"}}>Editar</button>}/>
+      <div style={{padding:16,paddingBottom:60}}>
+        <div style={{background:NV,borderRadius:12,padding:16,marginBottom:14,color:"#fff"}}>
+          <div style={{fontSize:18,fontWeight:700}}>{c.centro_nombre}</div>
+          {c.tema&&<div style={{fontSize:13,opacity:.85,marginTop:4}}>{c.tema}</div>}
+          <div style={{display:"flex",gap:12,marginTop:10,fontSize:13,opacity:.9,flexWrap:"wrap"}}>
+            <span>📅 {fmt(c.fecha)}</span>
+            {c.hora_inicio&&<span>🕐 {c.hora_inicio}{c.hora_fin?"–"+c.hora_fin:""}</span>}
+            {c.sanitario&&<span>🩺 {c.sanitario}</span>}
+            {c.trasplantado&&<span>💙 {c.trasplantado}</span>}
+          </div>
+        </div>
+        <div style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+          <ST c="🏫 Centro"/>
+          <FD l="Nombre" v={c.centro_nombre}/><FD l="Curso" v={c.centro_curso}/>
+          <FD l="Provincia" v={c.centro_provincia}/><FD l="Localidad" v={c.centro_localidad}/>
+          <FD l="Dirección" v={c.centro_direccion}/><FD l="Teléfono" v={c.centro_telefono}/>
+        </div>
+        <div style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+          <ST c="👤 Contacto"/>
+          <FD l="Nombre" v={c.contacto_nombre}/><FD l="Teléfono" v={c.contacto_telefono}/><FD l="Correo" v={c.contacto_email}/>
+        </div>
+        <div style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:12,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+          <ST c="📊 Sesión"/>
+          <FD l="Sanitario" v={c.sanitario}/><FD l="Trasplantado" v={c.trasplantado}/>
+          <FD l="Asistentes" v={c.asistentes?c.asistentes+" personas":null}/>
+          <FD l="Hora inicio" v={c.hora_inicio}/><FD l="Hora fin" v={c.hora_fin}/>
+          <FD l="Observaciones" v={c.obs}/>
+        </div>
+        <Btn lb="🗑️ Eliminar conferencia" oc={()=>hDl(c.id)} dg/>
+      </div>
+    </div>;
+  }
+
+  // ── EXPORTAR ──────────────────────────────────────────────────
+  if(sc==="export")return <div style={{minHeight:"100vh",background:LT}}>
+    <Hdr t="Exportar a PDF" bk={()=>setSc("list")}/>
+    <div style={{padding:16,paddingBottom:60}}>
+      <div style={{background:"#fff",borderRadius:12,padding:16,marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+        <ST c="🔍 Filtros"/>
+        <div style={{display:"flex",gap:10}}>
+          <div style={{flex:1}}><Sel lb="Año" fm="A" vl={fA} ch={e=>sfA(e.target.value)} opts={anios} ph="Todos"/></div>
+          <div style={{flex:1}}><Sel lb="Mes" fm="M" vl={fM} ch={e=>sfM(e.target.value)} opts={["1","2","3","4","5","6","7","8","9","10","11","12"]} ph="Todos"/></div>
+        </div>
+        <Sel lb="Provincia" fm="P" vl={fP} ch={e=>sfP(e.target.value)} opts={uniq(cs,"centro_provincia")} ph="Todas"/>
+        <Sel lb="Localidad" fm="L" vl={fL} ch={e=>sfL(e.target.value)} opts={uniq(cs,"centro_localidad")} ph="Todas"/>
+        <Sel lb="Centro" fm="C" vl={fC} ch={e=>sfC(e.target.value)} opts={uniq(cs,"centro_nombre")} ph="Todos"/>
+        <Sel lb="Sanitario" fm="S" vl={fS} ch={e=>sfS(e.target.value)} opts={uniq(cs,"sanitario")} ph="Todos"/>
+        <Sel lb="Trasplantado" fm="T" vl={fT} ch={e=>sfT(e.target.value)} opts={uniq(cs,"trasplantado")} ph="Todos"/>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
+          <input type="checkbox" id="ck" checked={iC} onChange={e=>sIC(e.target.checked)} style={{width:18,height:18,accentColor:NV}}/>
+          <label htmlFor="ck" style={{fontSize:14,color:"#444",cursor:"pointer"}}>Incluir datos de contacto</label>
+        </div>
+        <button onClick={()=>{sfA("");sfM("");sfP("");sfL("");sfC("");sfS("");sfT("");}} style={{background:"none",border:"none",color:NV,fontSize:13,cursor:"pointer",textDecoration:"underline",padding:0}}>Limpiar filtros</button>
+      </div>
+      <div style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
+        <ST c="📊 Resumen"/>
+        <div style={{display:"flex",gap:10,marginBottom:12}}>
+          <SB n={ef.length} l="conferencias"/><SB n={tA} l="asistentes"/><SB n={med} l="media/conf."/>
+        </div>
+        {ef.length>0&&<div style={{maxHeight:180,overflowY:"auto"}}>
+          {ef.map(c=><div key={c.id} style={{borderBottom:"1px solid #F0F2F8",padding:"7px 0",fontSize:13}}>
+            <span style={{color:NV,fontWeight:600}}>{fmt(c.fecha)}</span>
+            <span style={{color:"#444",marginLeft:8}}>{c.centro_nombre}</span>
+            {c.centro_provincia&&<span style={{color:"#888",marginLeft:6,fontSize:12}}>· {c.centro_provincia}</span>}
+          </div>)}
+        </div>}
+      </div>
+      <Btn lb="📄 Ver informe y guardar PDF" oc={hEx}/>
+    </div>
+    <Tst m={ts}/>
+  </div>;
+
+  // ── PREVIEW PDF ───────────────────────────────────────────────
+  if(sc==="preview"&&rpt){
+    const{list,tot,byA,byP,byM,iC:ic}=rpt;
+    const tS={width:"100%",borderCollapse:"collapse",marginBottom:12,fontSize:10};
+    const thS={background:NV,color:"#fff",padding:"5px 4px",textAlign:"left",fontSize:9};
+    const tdS={padding:"4px",borderBottom:"1px solid #eee",fontSize:9,verticalAlign:"top"};
+    const fd=new Date().toLocaleDateString("es-ES",{day:"2-digit",month:"long",year:"numeric"});
+    return <div style={{minHeight:"100vh",background:"#f0f0f0"}}>
+      <div className="np" style={{background:NV,padding:`max(env(safe-area-inset-top),14px) 16px 10px`,display:"flex",alignItems:"center",position:"sticky",top:0,zIndex:10}}>
+        <button onClick={()=>setSc("export")} style={{background:"none",border:"none",color:"#fff",fontSize:15,cursor:"pointer",minWidth:70,textAlign:"left",padding:0}}>← Volver</button>
+        <div style={{color:"#fff",fontWeight:700,fontSize:16,flex:1,textAlign:"center"}}>Vista previa</div>
+        <button onClick={()=>window.print()} style={{background:"#fff",border:"none",color:NV,fontWeight:700,fontSize:13,borderRadius:8,padding:"5px 11px",cursor:"pointer",minWidth:70}}>🖨️ Imprimir</button>
+      </div>
+      <div className="np" style={{background:"#163058",padding:"8px 14px",textAlign:"center",fontSize:12,color:"#fff"}}>
+        Pulsa <strong>Imprimir</strong> → <strong>Guardar como PDF</strong>
+      </div>
+      <div style={{background:"#fff",margin:"0 auto",padding:20,maxWidth:900,fontFamily:"Arial,sans-serif"}}>
+        <h1 style={{color:NV,fontSize:17,margin:"0 0 2px"}}>DETRADI GALICIA — Informe de Conferencias</h1>
+        <p style={{color:"#555",fontSize:11,margin:"2px 0 10px"}}>Programa de divulgación de la donación y el trasplante de órganos y tejidos</p>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          {[{n:list.length,l:"Conferencias"},{n:tot,l:"Asistentes"},{n:Object.keys(byP).length,l:"Provincias"}].map((x,i)=>(
+            <div key={i} style={{flex:1,background:NV,color:"#fff",borderRadius:6,padding:8,textAlign:"center"}}>
+              <div style={{fontSize:18,fontWeight:"bold"}}>{x.n}</div><div style={{fontSize:9}}>{x.l}</div>
+            </div>
+          ))}
+        </div>
+        <strong style={{fontSize:10}}>Por año</strong>
+        <table style={tS}><thead><tr><th style={thS}>Año</th><th style={thS}>Conf.</th><th style={thS}>Asist.</th><th style={thS}>Provincias</th></tr></thead>
+          <tbody>{Object.entries(byA).sort().map(([y,d])=><tr key={y}><td style={tdS}><b>{y}</b></td><td style={tdS}>{d.n}</td><td style={tdS}>{d.a}</td><td style={tdS}>{[...d.prs].join(", ")||"—"}</td></tr>)}</tbody>
+        </table>
+        <strong style={{fontSize:10}}>Listado detallado</strong>
+        <table style={tS}><thead><tr>
+          {["Fecha","Centro","Curso","Provincia","Localidad","Tema","Sanitario","Trasplantado","Asist.","Horario",...(ic?["Contacto","Tel.","Email"]:[]),"Obs."].map(h=><th key={h} style={thS}>{h}</th>)}
+        </tr></thead>
+        <tbody>{list.map((c,i)=><tr key={i} style={{background:i%2?"#f9fafc":"#fff"}}>
+          <td style={tdS}>{fmt(c.fecha)}</td><td style={tdS}>{c.centro_nombre}</td><td style={tdS}>{c.centro_curso}</td>
+          <td style={tdS}>{c.centro_provincia}</td><td style={tdS}>{c.centro_localidad}</td>
+          <td style={tdS}>{c.tema}</td><td style={tdS}>{c.sanitario}</td><td style={tdS}>{c.trasplantado}</td>
+          <td style={tdS}>{c.asistentes||"—"}</td>
+          <td style={tdS}>{c.hora_inicio||""}{c.hora_fin?"–"+c.hora_fin:""}</td>
+          {ic&&<><td style={tdS}>{c.contacto_nombre}</td><td style={tdS}>{c.contacto_telefono}</td><td style={tdS}>{c.contacto_email}</td></>}
+          <td style={tdS}>{c.obs}</td>
+        </tr>)}</tbody></table>
+        <div style={{marginTop:12,fontSize:9,color:"#999",borderTop:"1px solid #ddd",paddingTop:6}}>
+          Generado el {fd} · DETRADI GALICIA
+        </div>
+      </div>
+    </div>;
+  }
+  return null;
+}
+ReactDOM.createRoot(document.getElementById("root")).render(<App/>);
+</script>
+</body>
+</html>
