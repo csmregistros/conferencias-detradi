@@ -270,10 +270,6 @@ function App(){
         <Sel lb="Centro" fm="C" vl={fC} ch={e=>sfC(e.target.value)} opts={uniq(cs,"centro_nombre")} ph="Todos"/>
         <Sel lb="Sanitario" fm="S" vl={fS} ch={e=>sfS(e.target.value)} opts={uniq(cs,"sanitario")} ph="Todos"/>
         <Sel lb="Trasplantado" fm="T" vl={fT} ch={e=>sfT(e.target.value)} opts={uniq(cs,"trasplantado")} ph="Todos"/>
-        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:8}}>
-          <input type="checkbox" id="ck" checked={iC} onChange={e=>sIC(e.target.checked)} style={{width:18,height:18,accentColor:NV}}/>
-          <label htmlFor="ck" style={{fontSize:14,color:"#444",cursor:"pointer"}}>Incluir datos de contacto</label>
-        </div>
         <button onClick={()=>{sfA("");sfM("");sfP("");sfL("");sfC("");sfS("");sfT("");}} style={{background:"none",border:"none",color:NV,fontSize:13,cursor:"pointer",textDecoration:"underline",padding:0}}>Limpiar filtros</button>
       </div>
       <div style={{background:"#fff",borderRadius:12,padding:"14px 16px",marginBottom:14,boxShadow:"0 1px 4px rgba(0,0,0,.05)"}}>
@@ -326,7 +322,7 @@ function App(){
         </table>
         <strong style={{fontSize:10}}>Listado detallado</strong>
         <table style={tS}><thead><tr>
-          {["Fecha","Centro","Curso","Provincia","Localidad","Tema","Sanitario","Trasplantado","Asist.","Horario",...(ic?["Contacto","Tel.","Email"]:[]),"Obs."].map(h=><th key={h} style={thS}>{h}</th>)}
+          {["Fecha","Centro","Curso","Provincia","Localidad","Tema","Sanitario","Trasplantado","Asist.","Horario"].map(h=><th key={h} style={thS}>{h}</th>)}
         </tr></thead>
         <tbody>{list.map((c,i)=><tr key={i} style={{background:i%2?"#f9fafc":"#fff"}}>
           <td style={tdS}>{fmt(c.fecha)}</td><td style={tdS}>{c.centro_nombre}</td><td style={tdS}>{c.centro_curso}</td>
@@ -334,8 +330,6 @@ function App(){
           <td style={tdS}>{c.tema}</td><td style={tdS}>{c.sanitario}</td><td style={tdS}>{c.trasplantado}</td>
           <td style={tdS}>{c.asistentes||"—"}</td>
           <td style={tdS}>{c.hora_inicio||""}{c.hora_fin?"–"+c.hora_fin:""}</td>
-          {ic&&<><td style={tdS}>{c.contacto_nombre}</td><td style={tdS}>{c.contacto_telefono}</td><td style={tdS}>{c.contacto_email}</td></>}
-          <td style={tdS}>{c.obs}</td>
         </tr>)}</tbody></table>
         <div style={{marginTop:12,fontSize:9,color:"#999",borderTop:"1px solid #ddd",paddingTop:6}}>
           Generado el {fd} · DETRADI GALICIA
