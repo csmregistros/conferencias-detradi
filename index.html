@@ -10,6 +10,9 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.2/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:#F4F6FB;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif}
@@ -146,6 +149,43 @@ function App(){
     });
     setRpt({list:ef,tot,byA,byP,byM,iC});
     setSc("preview");
+  }
+
+  function genPDF(){
+    if(ef.length===0){st("⚠️ Sin resultados");return;}
+    if(!(window.jspdf&&window.jspdf.jsPDF)){st("⚠️ Sin conexión para generar el PDF");return;}
+    const {jsPDF}=window.jspdf;
+    const doc=new jsPDF({orientation:"landscape",unit:"pt",format:"a4"});
+    const tot=ef.reduce((s,c)=>s+(parseInt(c.asistentes)||0),0);
+    const byA={},prov=new Set();
+    ef.forEach(c=>{const y=(c.fecha||"").split("-")[0]||"Sin año";if(!byA[y])byA[y]={n:0,a:0,prs:new Set()};byA[y].n++;byA[y].a+=parseInt(c.asistentes)||0;if(c.centro_provincia){byA[y].prs.add(c.centro_provincia);prov.add(c.centro_provincia);}});
+    doc.setFontSize(14);doc.setTextColor(27,58,107);doc.text("DETRADI GALICIA — Informe de Conferencias",40,40);
+    doc.setFontSize(9);doc.setTextColor(90);doc.text("Programa de divulgación de la donación y el trasplante de órganos y tejidos",40,56);
+    doc.setFontSize(11);doc.setTextColor(0);doc.text(`Conferencias: ${ef.length}      Asistentes: ${tot}      Provincias: ${prov.size}`,40,76);
+    doc.autoTable({startY:90,head:[["Año","Conf.","Asist.","Provincias"]],body:Object.entries(byA).sort().map(([y,d])=>[y,d.n,d.a,[...d.prs].join(", ")||"—"]),styles:{fontSize:9,cellPadding:3},headStyles:{fillColor:[27,58,107]},margin:{left:40,right:40}});
+    doc.autoTable({startY:doc.lastAutoTable.finalY+16,
+      head:[["Fecha","Centro","Curso","Provincia","Localidad","Tema","Sanitario","Trasplantado","Asist.","Horario"]],
+      body:ef.map(c=>[fmt(c.fecha),c.centro_nombre||"",c.centro_curso||"",c.centro_provincia||"",c.centro_localidad||"",c.tema||"",c.sanitario||"",c.trasplantado||"",c.asistentes||"—",(c.hora_inicio||"")+(c.hora_fin?"–"+c.hora_fin:"")]),
+      styles:{fontSize:7,cellPadding:2,overflow:"linebreak"},headStyles:{fillColor:[27,58,107],fontSize:7},alternateRowStyles:{fillColor:[249,250,252]},margin:{left:40,right:40}});
+    const fd=new Date().toLocaleDateString("es-ES",{day:"2-digit",month:"long",year:"numeric"});
+    doc.setFontSize(8);doc.setTextColor(150);doc.text("Generado el "+fd+" · DETRADI GALICIA",40,doc.internal.pageSize.getHeight()-18);
+    doc.save("Conferencias_DETRADI_"+new Date().toISOString().slice(0,10)+".pdf");
+    st("📄 PDF generado");
+  }
+
+  function genXLSX(){
+    if(ef.length===0){st("⚠️ Sin resultados");return;}
+    if(!window.XLSX){st("⚠️ Sin conexión para generar el Excel");return;}
+    const head=["Fecha","Centro","Curso","Provincia","Localidad","Tema","Sanitario","Trasplantado","Asistentes","Hora inicio","Hora fin","Contacto","Teléfono contacto","Email","Dirección centro","Teléfono centro","Observaciones"];
+    const body=ef.map(c=>[c.fecha||"",c.centro_nombre||"",c.centro_curso||"",c.centro_provincia||"",c.centro_localidad||"",c.tema||"",c.sanitario||"",c.trasplantado||"",parseInt(c.asistentes)||0,c.hora_inicio||"",c.hora_fin||"",c.contacto_nombre||"",c.contacto_telefono||"",c.contacto_email||"",c.centro_direccion||"",c.centro_telefono||"",c.obs||""]);
+    const byA={},byP={};
+    ef.forEach(c=>{const y=(c.fecha||"").split("-")[0]||"Sin año";byA[y]=byA[y]||{n:0,a:0};byA[y].n++;byA[y].a+=parseInt(c.asistentes)||0;const p=c.centro_provincia||"Sin provincia";byP[p]=byP[p]||{n:0,a:0};byP[p].n++;byP[p].a+=parseInt(c.asistentes)||0;});
+    const res=[["Por año","Conferencias","Asistentes"],...Object.entries(byA).sort().map(([y,d])=>[y,d.n,d.a]),[],["Por provincia","Conferencias","Asistentes"],...Object.entries(byP).sort().map(([p,d])=>[p,d.n,d.a])];
+    const wb=XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet([head,...body]),"Conferencias");
+    XLSX.utils.book_append_sheet(wb,XLSX.utils.aoa_to_sheet(res),"Resumen");
+    XLSX.writeFile(wb,"Conferencias_DETRADI_"+new Date().toISOString().slice(0,10)+".xlsx");
+    st("📊 Excel generado");
   }
 
   const anios=[...new Set(cs.map(c=>c.fecha?.split("-")[0]).filter(Boolean))].sort().reverse();
@@ -285,7 +325,9 @@ function App(){
           </div>)}
         </div>}
       </div>
-      <Btn lb="📄 Ver informe y guardar PDF" oc={hEx}/>
+      <Btn lb="📄 Descargar PDF" oc={genPDF}/>
+      <Btn lb="📊 Descargar Excel" oc={genXLSX}/>
+      <button onClick={hEx} style={{width:"100%",background:"none",border:"none",color:NV,fontSize:13,cursor:"pointer",textDecoration:"underline",padding:0,marginTop:14}}>👁 Ver vista previa en pantalla</button>
     </div>
     <Tst m={ts}/>
   </div>;
@@ -301,10 +343,13 @@ function App(){
       <div className="np" style={{background:NV,padding:`max(env(safe-area-inset-top),14px) 16px 10px`,display:"flex",alignItems:"center",position:"sticky",top:0,zIndex:10}}>
         <button onClick={()=>setSc("export")} style={{background:"none",border:"none",color:"#fff",fontSize:15,cursor:"pointer",minWidth:70,textAlign:"left",padding:0}}>← Volver</button>
         <div style={{color:"#fff",fontWeight:700,fontSize:16,flex:1,textAlign:"center"}}>Vista previa</div>
-        <button onClick={()=>window.print()} style={{background:"#fff",border:"none",color:NV,fontWeight:700,fontSize:13,borderRadius:8,padding:"5px 11px",cursor:"pointer",minWidth:70}}>🖨️ Imprimir</button>
+        <div style={{display:"flex",gap:6,minWidth:70,justifyContent:"flex-end"}}>
+          <button onClick={genPDF} style={{background:"#fff",border:"none",color:NV,fontWeight:700,fontSize:13,borderRadius:8,padding:"5px 11px",cursor:"pointer"}}>⬇️ PDF</button>
+          <button onClick={()=>window.print()} style={{background:"none",border:"1px solid #ffffff55",color:"#fff",fontWeight:700,fontSize:13,borderRadius:8,padding:"5px 9px",cursor:"pointer"}}>🖨️</button>
+        </div>
       </div>
       <div className="np" style={{background:"#163058",padding:"8px 14px",textAlign:"center",fontSize:12,color:"#fff"}}>
-        Pulsa <strong>Imprimir</strong> → <strong>Guardar como PDF</strong>
+        Pulsa <strong>⬇️ PDF</strong> para descargar el informe (funciona en Mac y iPhone)
       </div>
       <div style={{background:"#fff",margin:"0 auto",padding:20,maxWidth:900,fontFamily:"Arial,sans-serif"}}>
         <h1 style={{color:NV,fontSize:17,margin:"0 0 2px"}}>DETRADI GALICIA — Informe de Conferencias</h1>
